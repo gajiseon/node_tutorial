@@ -1,77 +1,60 @@
-module.exports = function(app, fs)
+module.exports = function(app, Book)
 {
-    app.get('/', function(req, res) {
-        res.render('index', {
-            title: "MY HOMEPAGE",
-            length: 5
+    app.get('/api/books', function(req,res){
+        Book.find(function(err, books) {
+            if(err) return res.status(500).send({error: 'dateabase failure'});
+            res.json(books);
         });
     });
 
-    app.get('/list', function(req, res) {
-        fs.readFile(__dirname + "/../data/" + "user.json", 'utf8', function(err, data) {
-            console.log(data);
-            res.end(data);
+    app.get('/api/books/:book_id', function(req, res){
+        Book.findOne({_id:req.params.book_id}, function(err, book) {
+            if(err) return res.status(500).send({error: 'dateabase failure'});
+            if(!book) return res.status(404).json({error: 'book not found'});
+            res.json(book);
         });
     });
 
-    app.get('/getUser/:username', function(req, res) {
-        fs.readFile(__dirname + "/../data/user.json", 'utf8', function(err, data) {
-            var users = JSON.parse(data);
-            res.json(users[req.params.username]);
+    app.get('/api/books/author/:author', function(req, res){
+        Book.find({author: req.params.author}, {_id:0, title: 1, published_date: 1}, function(err, book) {
+            if(err) return res.status(500).json({error: err});
+            if(books.length === 0) return res.status(404).json({error : 'book not found'});
+            res.json(books);
         });
     });
 
-    app.post('/addUser/:username', function(req, res) {
-        var result = {};
-        var username = req.params.username;
-
-        // 유효성 검사
-        if(!req.body["password"] || !req.body["name"]) {
-            result["success"] = 0;
-            result["error"] = "invalid request";
-            res.json(result);
-            return;
-        }
-
-        // 중복 체크
-        fs.readFile(__dirname + "/../data/user.json", 'utf8', function(err, data) {
-            var users = JSON.parse(data);
-            if(users[username]) {
-                result["success"] = 0;
-                result["error"] = "duplicate";
-                res.json(result);
+    app.post('/api/books', function(req, res){
+        var book = new book();
+        book.title = req.body.name;
+        book.author = req.body.author;
+        book.published_date = new Date(req.body.published_date);
+        book.save(function(err) {
+            if(err) {
+                console.error(err);
+                res.json({result:0});
                 return;
             }
-        })
-
-        // 저장
-        users[username] = req.body;
-
-        fs.writeFile(__dirname + "/../data/user.json", JSON.stringify(users, null, '\t', 'utf8', function(err, data) {
-            result["success"] = 1;
-            res.json(result);
-        }));
+            res.json({result:1});
+        });
     });
 
-    app.delete('/deleteUser/:username', function(req, res) {
-        var result = {};
-        fs.readFile(__dirname + "/../data/user.json", "utf8", function(err, data) {
-            var users = JSON.parse(data);
+    app.put('/api/books/:book_id', function(req, res) {
+        Book.update({_id: req.params.book_id}, {$set: req.body}, function(err, output) {
+            if(err) res.status(500).json({error: 'database failure'});
+            console.log(output);
+            if(!output.n) return res.status(404).json({error: 'book not found'});
+            res.json({message: 'book updated'});
+        });
+    });
 
-            // 존재여부 체크
-            if(!users[req.params.username]) {
-                result["success"] = 0;
-                result["error"] = "not found";
-                res.json(result);
-                return;
-            }
+    app.delete('/api/books/:book_id', function(req, res){
+        Book.remove({_id: req.params.book_id}, function(err, output) {
+            if(err) res.status(500).json({error: 'database failure'});
+            if(!output.result.n) return res.status(404).json({error: 'book not found'});
+            res.json({message: 'book deleted'});
 
-            delete users[req.params.username];
-            fs.writeFile(__dirname + "/../data/user.json", JSON.stringify(users, null, '\t'), 'utf8', function(err, data) {
-                result["Success"] = 1;
-                res.json(result);
-                return;
-            })
+            res.status(204).end();
         })
-    })
+    });
+
 }

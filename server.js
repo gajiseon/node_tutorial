@@ -1,25 +1,22 @@
 var express = require('express');
-var bodyParser = require('body-parser');
 var app = express();
 var bodyParser = require('body-parser');
-var session = require('express-session');
-var fs = require('fs');
+var mongoose = require('mongoose');
 
-app.set('views', __dirname + '/views');
-app.set('view engine', 'ejs');
-app.engine('html', require('ejs').renderFile);
-
-var server = app.listen(3000, function() {
-});
 app.use(express.static('public'));
 
-app.unsubscribe(bodyParser.json());
-app.use(bodyParser.urlencoded());
-app.use(session({
-    secret: '@#@$MYSIGN#@$#$',
-    sesave: false,
-    saveUninitialized: true
-}));
+app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.json());
 
-var router = require('./router/main')(app, fs);
+var port = process.env.PORT || 8080;
 
+var db = mongoose.connection;
+db.on('error', console.error);
+db.once('open', function () {
+});
+mongoose.connect('mongodb://localhost:27017/mongodb_tutorial',{useNewUrlParser: true});
+
+var Book = require('./models/book');
+var router = require('./router/main')(app, Book);
+var server = app.listen(port, function() {
+});
